@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block title %}ContentCatalyst - View Result{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>{{ result['topic'] }}</h1>
+    <p>Generated on {{ result['timestamp'] }}</p>
+
+    <!-- Article Titles -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2>Article Titles</h2>
+        </div>
+        <div class="card-body">
+            {% if result['results'].get('article_titles') %}
+            <ul class="list-group">
+                {% for title in result['results']['article_titles'] %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ title }}
+                    <button class="btn btn-outline-secondary btn-sm copy-btn" data-content="{{ title }}">Copy</button>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted">No article titles available.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Article Introductions -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2>Article Introduction</h2>
+        </div>
+        <div class="card-body">
+            {% if result['results'].get('article_introductions') %}
+            <div class="content">
+                {{ result['results']['article_introductions'] | markdown }}
+                <button class="btn btn-outline-secondary btn-sm copy-btn mt-2" data-content="{{ result['results']['article_introductions'] }}">Copy Introduction</button>
+            </div>
+            {% else %}
+            <p class="text-muted">No introduction available.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- SEO-Friendly Tags -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2>SEO-Friendly Tags</h2>
+        </div>
+        <div class="card-body">
+            {% if result['results'].get('seo_friendly_tags') %}
+            <ul class="list-group">
+                {% for tag in result['results']['seo_friendly_tags'] %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ tag }}
+                    <button class="btn btn-outline-secondary btn-sm copy-btn" data-content="{{ tag }}">Copy</button>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted">No SEO tags available.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Article Translation -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2>Article Translation</h2>
+        </div>
+        <div class="card-body">
+            {% if result['results'].get('article_translation') %}
+            <ul class="list-group">
+                {% for language, translation in result['results']['article_translation'].items() %}
+                <li class="list-group-item">
+                    <strong>{{ language }}:</strong>
+                    <div class="content">
+                        {{ translation | markdown }}
+                        <button class="btn btn-outline-secondary btn-sm copy-btn mt-2" data-content="{{ translation }}">Copy {{ language }} Translation</button>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted">No translations available.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Copy to Clipboard Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.copy-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const content = this.getAttribute('data-content');
+            navigator.clipboard.writeText(content).then(() => {
+                alert('Copied to clipboard!');
+            }).catch(err => {
+                alert('Error copying text: ' + err);
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

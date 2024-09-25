@@ -18,32 +18,38 @@
 </div>
 <form method="post">
     <div class="row row-cols-1 row-cols-md-2 g-4">
-        {% if 'article_translation' not in session.get('selected_options', []) %}
-            <!-- Provide Text Option -->
-            <div class="col">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title">Provide Text</h5>
-                        <p class="card-text">Manually enter your topic and article content using our editor.</p>
-                        <input type="radio" class="btn-check" name="content_option" id="provide_text" value="provide_text" autocomplete="off" required>
-                        <label class="btn btn-outline-primary w-100" for="provide_text">Select</label>
-                    </div>
+        <!-- Provide Text Option -->
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Provide Text</h5>
+                    <p class="card-text">Manually enter your topic and article content using our editor.</p>
+                    <input type="radio" class="btn-check" name="content_option" id="provide_text" value="provide_text" autocomplete="off" required>
+                    <label class="btn btn-outline-primary w-100" for="provide_text">Select</label>
                 </div>
             </div>
-        {% endif %}
+        </div>
+
         <!-- Upload Content Option -->
         <div class="col">
             <div class="card h-100">
                 <div class="card-body">
                     <h5 class="card-title">Upload Content</h5>
-                    <p class="card-text">
-                        Upload a TXT, MD, or DOCX file containing your article.
-                        {% if 'article_translation' in session.get('selected_options', []) %}
-                            <br><strong>This is required for the Article Translation feature.</strong>
-                        {% endif %}
-                    </p>
+                    <p class="card-text">Upload a TXT, MD, or DOCX file containing your article.</p>
                     <input type="radio" class="btn-check" name="content_option" id="upload_content" value="upload_content" autocomplete="off" required>
                     <label class="btn btn-outline-primary w-100" for="upload_content">Select</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Select File from Cosmos DB Option -->
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Select from Cosmos DB</h5>
+                    <p class="card-text">Choose a file you previously uploaded to Cosmos DB.</p>
+                    <input type="radio" class="btn-check" name="content_option" id="select_file" value="select_file" autocomplete="off" required>
+                    <label class="btn btn-outline-primary w-100" for="select_file">Select</label>
                 </div>
             </div>
         </div>

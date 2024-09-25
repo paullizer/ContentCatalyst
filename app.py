@@ -1,15 +1,42 @@
-from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, Markup
+from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, Markup, flash
 import openai
 import os
 import requests
 from werkzeug.utils import secure_filename
+from werkzeug.exceptions import RequestEntityTooLarge
 import docx2txt
 import markdown
 import bleach
+from docx import Document
+from azure.cosmos import CosmosClient, PartitionKey, exceptions
+import uuid
+import datetime
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_KEY")
-app.config['VERSION'] = '0.18'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB limit
+app.config['VERSION'] = '0.65'
+
+# Initialize Cosmos client
+cosmos_endpoint = os.getenv("AZURE_COSMOS_ENDPOINT")
+cosmos_key = os.getenv("AZURE_COSMOS_KEY")
+cosmos_db_name = os.getenv("AZURE_COSMOS_DB_NAME")
+cosmos_results_container_name = os.getenv("AZURE_COSMOS_RESULTS_CONTAINER_NAME")
+cosmos_files_container_name = os.getenv("AZURE_COSMOS_FILES_CONTAINER_NAME")
+
+cosmos_client = CosmosClient(cosmos_endpoint, cosmos_key)
+cosmos_db = cosmos_client.create_database_if_not_exists(id=cosmos_db_name)
+cosmos_results_container = cosmos_db.create_container_if_not_exists(
+    id=cosmos_results_container_name,
+    partition_key=PartitionKey(path="/id"),
+    offer_throughput=400
+)
+cosmos_files_container = cosmos_db.create_container_if_not_exists(
+    id=cosmos_files_container_name,
+    partition_key=PartitionKey(path="/id"),
+    offer_throughput=400
+)
+
 
 # Configure Azure OpenAI
 openai.api_type = os.getenv("AZURE_OPENAI_API_TYPE")  # e.g., "azure"
@@ -51,6 +78,82 @@ def get_cached_languages():
         languages_cache = fetch_languages()
     return languages_cache
 
+@app.errorhandler(RequestEntityTooLarge)
+def handle_file_too_large(e):
+    return render_template('upload_content.html', error="File is too large. Maximum allowed size is 16MB."), 413
+
+# Save results to Cosmos DB
+def save_results_to_cosmos(results, topic):
+    try:
+        result_data = {
+            'id': str(uuid.uuid4()),  # Unique ID
+            'topic': topic,
+            'results': results,
+            'timestamp': str(datetime.datetime.utcnow())
+        }
+        cosmos_results_container.create_item(body=result_data)
+    except exceptions.CosmosHttpResponseError as e:
+        print(f"Error saving to Cosmos DB: {e}")
+
+@app.context_processor
+def inject_previous_results():
+    # Query Cosmos DB for previous results
+    query = "SELECT c.id, c.topic, c.timestamp FROM c"
+    previous_results = []
+    try:
+        previous_results = list(cosmos_results_container.query_items(
+            query=query,
+            enable_cross_partition_query=True
+        ))
+    except Exception as e:
+        print(f"Error fetching previous results: {e}")
+    
+    # Inject `previous_results` into the template context for all pages
+    return {'previous_results': previous_results}
+
+@app.route('/select_file', methods=['GET', 'POST'])
+def select_file():
+    if request.method == 'POST':
+        selected_file_id = request.form.get('selected_file')
+        if selected_file_id:
+            try:
+                # Fetch the file content from Cosmos DB
+                file_item = cosmos_files_container.read_item(item=selected_file_id, partition_key=selected_file_id)
+
+                # Access 'file_content' instead of 'content'
+                session['body'] = file_item['file_content']
+                session['topic'] = extract_topic_from_content(file_item['file_content'])
+                
+                return redirect(url_for('options'))
+            except Exception as e:
+                print(f"Error retrieving file: {e}")
+                flash("An error occurred while retrieving the file.", "danger")
+                return redirect(request.url)
+    
+    # Get sorting and search parameters from the request
+    sort_by = request.args.get('sort_by', 'timestamp')  # Default to sorting by timestamp
+    sort_order = request.args.get('sort_order', 'desc')  # Default to descending order
+    search_query = request.args.get('search', '').lower()  # Default to empty search query
+    
+    # Query Cosmos DB for uploaded files
+    files_query = "SELECT c.id, c.filename, c.timestamp FROM c"
+    files = list(cosmos_files_container.query_items(query=files_query, enable_cross_partition_query=True))
+
+    # Filter results based on the search query
+    if search_query:
+        files = [file for file in files if search_query in file['filename'].lower()]
+
+    # Sort results based on sort_by and sort_order parameters
+    if sort_by == 'filename':
+        files.sort(key=lambda x: x['filename'].lower(), reverse=(sort_order == 'desc'))
+    else:  # Default to sorting by timestamp
+        files.sort(key=lambda x: x['timestamp'], reverse=(sort_order == 'desc'))
+
+    return render_template('select_file.html', files=files, sort_by=sort_by, sort_order=sort_order, search_query=search_query)
+
+
+
+
 # Register the markdown filter
 @app.template_filter('markdown')
 def markdown_filter(text):
@@ -76,6 +179,54 @@ def index():
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
+@app.route('/history')
+def history():
+    # Get sorting and search parameters from the request
+    sort_by = request.args.get('sort_by', 'timestamp')  # Default to sorting by timestamp
+    sort_order = request.args.get('sort_order', 'desc')  # Default to descending order
+    search_query = request.args.get('search', '').lower()  # Default to empty search query
+    
+    # Query Cosmos DB for uploaded files
+    query = "SELECT c.id, c.topic, c.timestamp FROM c"
+    results = list(cosmos_results_container.query_items(
+        query=query,
+        enable_cross_partition_query=True
+    ))
+
+    # Filter results based on the search query
+    if search_query:
+        results = [result for result in results if search_query in result['topic'].lower()]
+
+    # Sort results based on sort_by and sort_order parameters
+    if sort_by == 'topic':
+        results.sort(key=lambda x: x['topic'].lower(), reverse=(sort_order == 'desc'))
+    else:  # Default to sorting by timestamp
+        results.sort(key=lambda x: x['timestamp'], reverse=(sort_order == 'desc'))
+
+    return render_template('history.html', results=results, sort_by=sort_by, sort_order=sort_order, search_query=search_query)
+
+
+@app.route('/result/<result_id>')
+def view_result(result_id):
+    try:
+        # Fetch the result from Cosmos DB
+        result = cosmos_results_container.read_item(item=result_id, partition_key=result_id)
+        print(f"Full Result: {result}")  # Log the entire result object
+
+        # Render the template, log the error if rendering fails
+        try:
+            return render_template('view_result.html', result=result)
+        except Exception as e:
+            print(f"Template rendering error: {e}")
+            return "Error rendering the template.", 500
+    except Exception as e:
+        print(f"Error retrieving result: {e}")
+        return "Error retrieving result.", 500
+
+
+
+
+
 @app.route('/content_method', methods=['GET', 'POST'])
 def content_method():
     selected_options = session.get('selected_options', [])
@@ -85,7 +236,10 @@ def content_method():
             return redirect(url_for('provide_text'))
         elif content_option == 'upload_content':
             return redirect(url_for('upload_content'))
+        elif content_option == 'select_file':
+            return redirect(url_for('select_file'))
     return render_template('content_method.html')
+
 
 
 @app.route('/provide_text', methods=['GET', 'POST'])
@@ -103,20 +257,51 @@ def upload_content():
     if request.method == 'POST':
         file = request.files.get('file')
         if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file_extension = filename.rsplit('.', 1)[1].lower()
-            if file_extension == 'docx':
-                content = docx2txt.process(file)
-            elif file_extension in ['txt', 'md']:
-                content = file.read().decode('utf-8', errors='ignore')
-            else:
-                content = ''
-            session['body'] = content
-            session['topic'] = extract_topic_from_content(content)
-            return redirect(url_for('options'))
+            try:
+                # Secure the filename
+                filename = secure_filename(file.filename)
+                file_extension = filename.rsplit('.', 1)[1].lower()
+                
+                # Optional: You can still extract content to display or extract the topic
+                if file_extension == 'docx':
+                    content = docx2txt.process(file)
+                elif file_extension in ['txt', 'md']:
+                    content = file.read().decode('utf-8', errors='ignore')
+                else:
+                    content = ''
+
+                if not content.strip():
+                    flash("The uploaded file is empty or could not be read.", "danger")
+                    return redirect(request.url)
+
+                # Save file itself to Cosmos DB
+                file.seek(0)  # Reset file pointer to the beginning in case the content was read
+                file_data = {
+                    'id': str(uuid.uuid4()),  # Unique ID
+                    'filename': filename,
+                    'file_content': file.read().decode('utf-8', errors='ignore'),  # Save raw file content
+                    'file_extension': file_extension,
+                    'timestamp': str(datetime.datetime.utcnow())
+                }
+
+                # Insert file data into the Cosmos DB files container (saving the file itself, not content)
+                cosmos_files_container.create_item(body=file_data)
+
+                # Extract the topic from content for session (without storing the content itself)
+                session['body'] = content
+                session['topic'] = extract_topic_from_content(content)
+
+                flash("File uploaded successfully!", "success")
+                return redirect(url_for('options'))
+
+            except Exception as e:
+                print(f"Error processing the uploaded file: {e}")
+                flash("An error occurred while processing the uploaded file. Please ensure it's a valid DOCX, TXT, or MD file.", "danger")
+                return redirect(request.url)
         else:
-            # Handle invalid file
+            flash("Invalid file type. Please upload a DOCX, TXT, or MD file.", "danger")
             return redirect(request.url)
+    
     return render_template('upload_content.html')
 
 def extract_topic_from_content(content):
@@ -249,6 +434,8 @@ def results():
             lang_name = languages.get(lang_code, {}).get('name', lang_code)
             translations[lang_name] = translated_text
         results['article_translation'] = translations
+
+    save_results_to_cosmos(results, topic)
 
     return render_template('results.html', results=results, form_data=form_data, topic=topic, body=body)
 
