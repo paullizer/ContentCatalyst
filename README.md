@@ -29,7 +29,7 @@ ContentCatalyst is an all-in-one content enhancement tool designed to streamline
 
 ## Demo
 
-![Demo Screenshot](static/demo.png)
+![Demo Screenshot](static/images/demo.png)
 
 ## Installation
 
