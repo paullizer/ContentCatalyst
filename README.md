@@ -1,7 +1,5 @@
 # ContentCatalyst
 
-![ContentCatalyst Logo](static/logo.png)
-
 ContentCatalyst is an all-in-one content enhancement tool designed to streamline the workflow of journalists and content creators. Leverage the power of AI to generate engaging titles, craft compelling introductions and summaries, optimize content for SEO, create SEO-friendly tags, and translate articles into multiple languages seamlessly.
 
 ## Table of Contents
