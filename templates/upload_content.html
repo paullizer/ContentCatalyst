@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block title %}ContentCatalyst - Upload Content{% endblock %}
+
+{% block content %}
+<h1>Upload Content</h1>
+<form method="post" enctype="multipart/form-data">
+    <div class="mb-3">
+        <label for="file" class="form-label">Select a file to upload (TXT, MD, DOCX)</label>
+        <input type="file" class="form-control" id="file" name="file" accept=".txt,.md,.docx" required>
+    </div>
+    <button type="submit" class="btn btn-success mt-3">Upload</button>
+</form>
+{% endblock %}

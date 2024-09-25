@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+
+{% block title %}ContentCatalyst - Customize Your Experience{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h1 class="mb-4">Customize Your Experience</h1>
+    <p class="lead mb-5">
+        Tailor the features you've selected to best suit your needs. Provide the necessary information and choose your preferences below.
+    </p>
+</div>
+
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-transparent border-0">
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary" role="status" style="width: 4rem; height: 4rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post">
+    <!-- Dynamic content based on selected options -->
+    {% for feature in options %}
+        {% if feature == 'article_titles' %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="card-title mb-0">Article Titles</h2>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Generate captivating titles for your article. Customize the style, tone, and include any specific keywords.
+                    </p>
+                    <div class="mb-3">
+                        <label for="title_style" class="form-label">Style</label>
+                        <select class="form-select" id="title_style" name="title_style">
+                            <option value="engaging">Engaging</option>
+                            <option value="informative">Informative</option>
+                            <option value="creative">Creative</option>
+                            <option value="formal">Formal</option>
+                        </select>
+                        <div class="form-text">Choose the style that best fits your audience.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="title_tone" class="form-label">Tone</label>
+                        <select class="form-select" id="title_tone" name="title_tone">
+                            <option value="neutral">Neutral</option>
+                            <option value="casual">Casual</option>
+                            <option value="formal">Formal</option>
+                            <option value="humorous">Humorous</option>
+                        </select>
+                        <div class="form-text">Select the tone that matches your article's voice.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="title_keywords" class="form-label">Keywords (optional)</label>
+                        <input type="text" class="form-control" id="title_keywords" name="title_keywords" placeholder="e.g., technology, innovation">
+                        <div class="form-text">Include any specific keywords you want in the titles.</div>
+                    </div>
+                </div>
+            </div>
+        {% elif feature == 'article_introductions' %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="card-title mb-0">Introductions & Summaries</h2>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Craft compelling introductions and concise summaries for your article. Adjust the length and tone to fit your style.
+                    </p>
+                    <div class="mb-3">
+                        <label for="intro_length" class="form-label">Introduction Length</label>
+                        <select class="form-select" id="intro_length" name="intro_length">
+                            <option value="short">Short</option>
+                            <option value="medium">Medium</option>
+                            <option value="long">Long</option>
+                        </select>
+                        <div class="form-text">Select the desired length for your introduction.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Include Summary</label><br>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="include_summary" id="include_summary_yes" value="yes">
+                            <label class="form-check-label" for="include_summary_yes">Yes</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="include_summary" id="include_summary_no" value="no" checked>
+                            <label class="form-check-label" for="include_summary_no">No</label>
+                        </div>
+                        <div class="form-text">Choose whether to generate a summary alongside the introduction.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="intro_tone" class="form-label">Tone</label>
+                        <select class="form-select" id="intro_tone" name="intro_tone">
+                            <option value="neutral">Neutral</option>
+                            <option value="casual">Casual</option>
+                            <option value="formal">Formal</option>
+                            <option value="enthusiastic">Enthusiastic</option>
+                        </select>
+                        <div class="form-text">Select the tone that matches your article's voice.</div>
+                    </div>
+                </div>
+            </div>
+        {% elif feature == 'automated_seo_text' %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="card-title mb-0">Automated SEO Text</h2>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Generate SEO-optimized content to improve your article's visibility in search engines. Include target keywords for better results.
+                    </p>
+                    <div class="mb-3">
+                        <label for="seo_keywords" class="form-label">Target Keywords</label>
+                        <input type="text" class="form-control" id="seo_keywords" name="seo_keywords" placeholder="e.g., SEO, marketing, online visibility">
+                        <div class="form-text">Enter keywords you want to target in the SEO content.</div>
+                    </div>
+                </div>
+            </div>
+        {% elif feature == 'seo_friendly_tags' %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="card-title mb-0">SEO-Friendly Tags</h2>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Generate relevant tags to enhance your article's searchability. Specify the number of tags you need.
+                    </p>
+                    <div class="mb-3">
+                        <label for="num_tags" class="form-label">Number of Tags</label>
+                        <input type="number" class="form-control" id="num_tags" name="num_tags" min="1" max="20" value="5" required>
+                        <div class="form-text">Specify how many tags you want to generate (1-20).</div>
+                    </div>
+                </div>
+            </div>
+        {% elif feature == 'article_translation' %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h2 class="card-title mb-0">Article Translation</h2>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Translate your article into multiple languages to reach a wider audience. Select the target languages below.
+                    </p>
+                    <div class="mb-3">
+                        <label for="translation_text" class="form-label">Text to Translate</label>
+                        <textarea class="form-control" id="translation_text" name="translation_text" rows="10" readonly>{{ body }}</textarea>
+                        <div class="form-text">This is the content of your uploaded file.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Select Target Languages</label><br>
+                        <div class="btn-group flex-wrap" role="group" aria-label="Target Languages">
+                            {% for code, lang_info in languages.items() %}
+                                <input type="checkbox" class="btn-check" id="language_{{ code }}" name="target_languages" value="{{ code }}" autocomplete="off">
+                                <label class="btn btn-outline-primary m-1" for="language_{{ code }}">{{ lang_info['name'] }}</label>
+                            {% endfor %}
+                        </div>
+                        <div class="form-text">Select one or more languages for translation.</div>
+                    </div>                    
+                </div>
+            </div>
+        {% endif %}
+    {% endfor %}
+    <div class="text-center mt-5">
+        <button type="submit" class="btn btn-success btn-lg">Generate</button>
+    </div>
+</form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form'); // Select your form
+        form.addEventListener('submit', function() {
+            // Show the loading modal
+            const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+            loadingModal.show();
+        });
+    });
+</script>
+  
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}ContentCatalyst - Provide Your Text{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h1 class="mb-4">Provide Your Content</h1>
+    <p class="lead mb-5">
+        Enter your topic and, if you'd like, the body of your article below. Our tools will help enhance your content based on the features you've selected.
+    </p>
+</div>
+<form method="post">
+    <div class="mb-4">
+        <label for="topic" class="form-label fs-4">Topic <span class="text-danger">*</span></label>
+        <input type="text" class="form-control form-control-lg" id="topic" name="topic" placeholder="Enter your article's topic" required>
+        <div class="form-text">This will be used as the main subject for generating content.</div>
+    </div>
+    <div class="mb-4">
+        <label for="body" class="form-label fs-4">Body (optional)</label>
+        <textarea class="form-control" id="body" name="body" rows="8" placeholder="Paste your article content here"></textarea>
+        <div class="form-text">Providing the body allows for more tailored enhancements.</div>
+    </div>
+    <div class="text-center mt-5">
+        <button type="submit" class="btn btn-success btn-lg">Next</button>
+    </div>
+</form>
+{% endblock %}

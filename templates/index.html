@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}ContentCatalyst - Home{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h1 class="mb-4">Welcome to ContentCatalyst</h1>
+    <p class="lead mb-5">
+        ContentCatalyst is your all-in-one content enhancement tool designed to streamline the workflow of journalists and content creators. Select from a variety of features to generate engaging titles, create compelling introductions and summaries, optimize your content for SEO, generate SEO-friendly tags, and translate your articles into multiple languages.
+    </p>
+    <h2 class="mb-4">Select Features to Get Started</h2>
+</div>
+<form method="post">
+    <div class="row row-cols-1 row-cols-md-2 g-4">
+        <!-- Article Titles -->
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Article Titles</h5>
+                    <p class="card-text">Generate captivating and SEO-friendly titles to grab your readers' attention.</p>
+                    <input type="checkbox" class="btn-check" id="article_titles" name="options" value="article_titles" autocomplete="off">
+                    <label class="btn btn-outline-primary w-100" for="article_titles">Select</label>
+                </div>
+            </div>
+        </div>
+        <!-- Article Introductions and Summaries -->
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Introductions & Summaries</h5>
+                    <p class="card-text">Craft compelling introductions and concise summaries tailored to your audience.</p>
+                    <input type="checkbox" class="btn-check" id="article_introductions" name="options" value="article_introductions" autocomplete="off">
+                    <label class="btn btn-outline-primary w-100" for="article_introductions">Select</label>
+                </div>
+            </div>
+        </div>
+        <!-- Automated SEO Text -->
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Automated SEO Text</h5>
+                    <p class="card-text">Generate SEO-optimized titles and introductions to boost your content's visibility.</p>
+                    <input type="checkbox" class="btn-check" id="automated_seo_text" name="options" value="automated_seo_text" autocomplete="off">
+                    <label class="btn btn-outline-primary w-100" for="automated_seo_text">Select</label>
+                </div>
+            </div>
+        </div>
+        <!-- SEO-Friendly Tags -->
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">SEO-Friendly Tags</h5>
+                    <p class="card-text">Automatically generate relevant tags to improve your content's searchability.</p>
+                    <input type="checkbox" class="btn-check" id="seo_friendly_tags" name="options" value="seo_friendly_tags" autocomplete="off">
+                    <label class="btn btn-outline-primary w-100" for="seo_friendly_tags">Select</label>
+                </div>
+            </div>
+        </div>
+        <!-- Article Translation -->
+        <div class="col">
+            <div class="card h-100 {% if 'article_translation' in request.form.getlist('options') %}border-warning{% endif %}">
+                <div class="card-body">
+                    <h5 class="card-title">Article Translation</h5>
+                    <p class="card-text">Translate your articles seamlessly into multiple languages. <br><strong>Note: This feature requires uploading a file.</strong></p>
+                    <input type="checkbox" class="btn-check" id="article_translation" name="options" value="article_translation" autocomplete="off" {% if 'article_translation' in request.form.getlist('options') %}checked{% endif %}>
+                    <label class="btn btn-outline-primary w-100" for="article_translation">Select</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Alert if Article Translation is selected -->
+    {% if 'article_translation' in request.form.getlist('options') %}
+        <div class="alert alert-warning mt-4">
+            <strong>Notice:</strong> You have selected "Article Translation." This feature requires uploading a file on the next step.
+        </div>
+    {% endif %}
+    </div>
+    <div class="text-center mt-5">
+        <button type="submit" class="btn btn-success btn-lg">Next</button>
+    </div>
+</form>
+
+<!-- Add JavaScript to Change Label Text on Checkbox State Change -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get all checkboxes with class 'btn-check'
+        const checkboxes = document.querySelectorAll('.btn-check');
+
+        checkboxes.forEach(function(checkbox) {
+            // Get the label associated with the checkbox
+            const label = document.querySelector('label[for="' + checkbox.id + '"]');
+            
+            // Set initial label text based on whether checkbox is checked
+            label.innerText = checkbox.checked ? 'Selected' : 'Select';
+
+            // Add event listener for 'change' event
+            checkbox.addEventListener('change', function() {
+                label.innerText = this.checked ? 'Selected' : 'Select';
+            });
+        });
+    });
+</script>
+{% endblock %}

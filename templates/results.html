@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block title %}ContentCatalyst - Your Generated Content{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h1 class="mb-4">Your Generated Content</h1>
+    <p class="lead mb-5">
+        Below you'll find your original content and the generated enhancements based on your selections.
+    </p>
+</div>
+
+{% if topic or body %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title mb-0">Your Provided Content</h2>
+        </div>
+        <div class="card-body">
+            {% if topic %}
+                <h3>Topic</h3>
+                <p>{{ topic }}</p>
+            {% endif %}
+            {% if body %}
+                <h3>Body</h3>
+                <div class="content">
+                    {{ body | markdown }}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
+
+{% if results %}
+    {% for feature, content in results.items() %}
+        {% if feature == 'article_titles' %}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="card-title mb-0">Article Titles</h2>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Here are some engaging titles for your article:
+                    </p>
+                    <ul class="list-group">
+                        {% for title in content %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ title }}
+                                <button class="btn btn-outline-secondary btn-sm copy-btn" data-content="{{ title }}">Copy</button>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        {% elif feature == 'article_introductions' %}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="card-title mb-0">Introduction{% if 'include_summary' in form_data and form_data['include_summary'][0] == 'yes' %} and Summary{% endif %}</h2>
+                </div>
+                <div class="card-body">
+                    {% if 'include_summary' in form_data and form_data['include_summary'][0] == 'yes' %}
+                        {% set parts = content.split('Summary:') %}
+                        <h3>Introduction</h3>
+                        <div class="content">
+                            {{ parts[0] | markdown }}
+                        </div>
+                        <button class="btn btn-outline-secondary btn-sm copy-btn mt-2" data-content="{{ parts[0] }}">Copy Introduction</button>
+                        <hr>
+                        <h3>Summary</h3>
+                        <div class="content">
+                            {{ ('Summary:' + parts[1]) | markdown }}
+                        </div>
+                        <button class="btn btn-outline-secondary btn-sm copy-btn mt-2" data-content="{{ 'Summary:' + parts[1] }}">Copy Summary</button>
+                    {% else %}
+                        <div class="content">
+                            {{ content | markdown }}
+                        </div>
+                        <button class="btn btn-outline-secondary btn-sm copy-btn mt-2" data-content="{{ content }}">Copy Introduction</button>
+                    {% endif %}
+                </div>
+            </div>
+        {% elif feature == 'automated_seo_text' %}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="card-title mb-0">Automated SEO Text</h2>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Here is the SEO-optimized content for your article:
+                    </p>
+                    <div class="content">
+                        {{ content | markdown }}
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm copy-btn mt-2" data-content="{{ content }}">Copy SEO Text</button>
+                </div>
+            </div>
+        {% elif feature == 'seo_friendly_tags' %}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="card-title mb-0">SEO-Friendly Tags</h2>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Use these tags to enhance your article's searchability:
+                    </p>
+                    <ul class="list-group">
+                        {% for tag in content %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ tag }}
+                                <button class="btn btn-outline-secondary btn-sm copy-btn" data-content="{{ tag }}">Copy</button>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        {% elif feature == 'article_translation' %}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="card-title mb-0">Article Translation</h2>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Your article has been translated into the following languages:
+                    </p>
+                    {% for language, translation in content.items() %}
+                        <h3>{{ language }}</h3>
+                        <div class="content">
+                            {{ translation | markdown }}
+                        </div>
+                        <button class="btn btn-outline-secondary btn-sm copy-btn mt-2" data-content="{{ translation }}">Copy {{ language }} Translation</button>
+                        <hr>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    {% endfor %}
+{% else %}
+    <p>No results to display.</p>
+{% endif %}
+
+<div class="text-center mt-5">
+    <a href="{{ url_for('index') }}" class="btn btn-danger btn-lg">Start Over</a>
+</div>
+
+<!-- Include the copy-to-clipboard script -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const copyButtons = document.querySelectorAll('.copy-btn');
+        copyButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                const content = this.getAttribute('data-content');
+                navigator.clipboard.writeText(content).then(() => {
+                    // Optionally provide feedback to the user
+                    alert('Copied to clipboard!');
+                }).catch(err => {
+                    alert('Failed to copy text: ', err);
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}
