@@ -1,6 +1,6 @@
 # ContentCatalyst
 
-**ContentCatalyst** is an all-in-one content enhancement tool designed for journalists and content creators. Harness AI to generate engaging titles, craft compelling introductions and summaries, optimize for SEO, create SEO-friendly tags, and seamlessly translate articles into multiple languages.
+**ContentCatalyst** is an all-in-one content enhancement tool, using Azure OpenAI and Azure Translator, designed for journalists and content creators. Harness AI to generate engaging titles, craft compelling introductions and summaries, optimize for SEO, create SEO-friendly tags, and seamlessly translate articles into multiple languages.
 
 ![home](images/home.png)
 
