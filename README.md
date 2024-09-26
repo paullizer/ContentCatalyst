@@ -28,7 +28,7 @@
 
 ## Demo
 
-[Content Catalyst Demo and Walkthrough - YouTube](https://www.youtube.com/watch?v=bPA6tBCflFo)
+[![](https://markdown-videos-api.jorgenkh.no/youtube/bPA6tBCflFo)](https://youtu.be/bPA6tBCflFo)
 
 ## Installation
 
