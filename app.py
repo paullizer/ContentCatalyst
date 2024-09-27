@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, Markup, flash
+from flask_session import Session 
 import openai
 import os
 import requests
@@ -11,11 +12,13 @@ from docx import Document
 from azure.cosmos import CosmosClient, PartitionKey, exceptions
 import uuid
 import datetime
+import msal
+from msal import ConfidentialClientApplication
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_KEY")
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB limit
-app.config['VERSION'] = '0.65'
+app.config['VERSION'] = '0.75'
 
 # Initialize Cosmos client
 cosmos_endpoint = os.getenv("AZURE_COSMOS_ENDPOINT")
@@ -51,6 +54,12 @@ TRANSLATION_KEY = os.getenv("AZURE_TRANSLATION_KEY")
 TRANSLATION_REGION = os.getenv("AZURE_TRANSLATION_REGION")
 TRANSLATION_LANGUAGE_URL = os.getenv("AZURE_TRANSLATION_LANGUAGE_URL")
 
+CLIENT_ID = os.getenv("CLIENT_ID")
+CLIENT_SECRET = os.getenv("MICROSOFT_PROVIDER_AUTHENTICATION_SECRET")
+TENANT_ID = os.getenv("TENANT_ID")
+AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
+SCOPE = ["User.Read"]  # Adjust scope according to your needs
+
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {'txt', 'md', 'docx'}
 
@@ -84,13 +93,15 @@ def handle_file_too_large(e):
 
 # Save results to Cosmos DB
 def save_results_to_cosmos(results, topic):
+    user_id = session.get("user", {}).get("oid", "anonymous")  # Default to 'anonymous' if user ID not found
+    result_data = {
+        'id': str(uuid.uuid4()),
+        'user_id': user_id,  # Save user ID with the result
+        'topic': topic,
+        'results': results,
+        'timestamp': str(datetime.datetime.utcnow())
+    }
     try:
-        result_data = {
-            'id': str(uuid.uuid4()),  # Unique ID
-            'topic': topic,
-            'results': results,
-            'timestamp': str(datetime.datetime.utcnow())
-        }
         cosmos_results_container.create_item(body=result_data)
     except exceptions.CosmosHttpResponseError as e:
         print(f"Error saving to Cosmos DB: {e}")
@@ -163,10 +174,49 @@ def markdown_filter(text):
     clean_html = bleach.clean(html, tags=allowed_tags, attributes=allowed_attrs, strip=True)
     return Markup(clean_html)
 
+@app.route("/login")
+def login():
+    # Create a MSAL application object
+    msal_app = ConfidentialClientApplication(
+        CLIENT_ID, authority=AUTHORITY, client_credential=CLIENT_SECRET,
+    )
+    # Get the login URL to redirect the user
+    result = msal_app.get_authorization_request_url(SCOPE, redirect_uri=url_for("authorized", _external=True, _scheme='https'))
+    print("Debug - MSAL auth URL and state:", result)
+    #auth_url, session['state'] = result[:2]  # This assumes the first two values are what you need
+
+    return redirect(result)
+
+@app.route("/getAToken")  # Redirect URI
+def authorized():
+    # Create a MSAL application object
+    msal_app = ConfidentialClientApplication(
+        CLIENT_ID, authority=AUTHORITY, client_credential=CLIENT_SECRET,
+    )
+    # Extract the code from the response
+    code = request.args.get('code', '')
+    result = msal_app.acquire_token_by_authorization_code(
+        code,
+        scopes=SCOPE,  # Misspelled in MSAL as scope
+        redirect_uri=url_for("authorized", _external=True, _scheme='https')
+    )
+    if "error" in result:
+        return f"Login failure: {result.get('error_description', result.get('error'))}"
+    session["user"] = result.get("id_token_claims")
+    return redirect(url_for("index"))
+
+@app.route("/logout")
+def logout():
+    session.clear()  # Clear the user session
+    flash('You have been successfully logged out.', 'success')  # Optional: Notify the user of logout
+    return redirect(url_for('index'))  # Redirect to the homepage or login page
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    session.clear()  # Clear session data
+     # Clear specific keys instead of the whole session
+    keys_to_clear = ['selected_options', 'form_data', 'topic', 'body']
+    for key in keys_to_clear:
+        session.pop(key, None)
     if request.method == 'POST':
         selected_options = request.form.getlist('options')
         session['selected_options'] = selected_options

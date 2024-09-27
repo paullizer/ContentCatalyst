@@ -88,10 +88,25 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('history') }}">History</a>
                     </li>
+                    {% if session.get('user') %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+                        </li>
+                    {% endif %}
                 </ul>
+                {% if session.get('user') %}
+                    <span class="navbar-text">
+                        Signed in as {{ session['user'].get('name') }}
+                    </span>
+                {% endif %}
             </div>
         </div>
     </nav>
+    
 
     <!-- Main Content Area -->
     <div class="container-fluid main-content" id="main-content">
