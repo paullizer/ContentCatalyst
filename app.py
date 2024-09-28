@@ -18,7 +18,7 @@ from msal import ConfidentialClientApplication
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_KEY")
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB limit
-app.config['VERSION'] = '0.75'
+app.config['VERSION'] = '0.80'
 
 # Initialize Cosmos client
 cosmos_endpoint = os.getenv("AZURE_COSMOS_ENDPOINT")
@@ -92,19 +92,27 @@ def handle_file_too_large(e):
     return render_template('upload_content.html', error="File is too large. Maximum allowed size is 16MB."), 413
 
 # Save results to Cosmos DB
-def save_results_to_cosmos(results, topic):
-    user_id = session.get("user", {}).get("oid", "anonymous")  # Default to 'anonymous' if user ID not found
+def save_results_to_cosmos(results, topic, body):
+    # Get user information from session
+    user_info = session.get("user", {})
+    user_id = user_info.get("oid", "anonymous")  # Default to 'anonymous' if user ID not found
+    user_email = user_info.get("email", "no-email")  # Default to 'no-email' if email not found
+    
     result_data = {
         'id': str(uuid.uuid4()),
         'user_id': user_id,  # Save user ID with the result
+        'user_email': user_email,  # Save user email with the result
         'topic': topic,
+        'body': body,
         'results': results,
         'timestamp': str(datetime.datetime.utcnow())
     }
+    
     try:
         cosmos_results_container.create_item(body=result_data)
     except exceptions.CosmosHttpResponseError as e:
         print(f"Error saving to Cosmos DB: {e}")
+
 
 @app.context_processor
 def inject_previous_results():
@@ -131,9 +139,8 @@ def select_file():
                 # Fetch the file content from Cosmos DB
                 file_item = cosmos_files_container.read_item(item=selected_file_id, partition_key=selected_file_id)
 
-                # Access 'file_content' instead of 'content'
-                session['body'] = file_item['file_content']
-                session['topic'] = extract_topic_from_content(file_item['file_content'])
+                session['body'] = file_item['content']
+                session['topic'] = extract_topic_from_content(file_item['content'])
                 
                 return redirect(url_for('options'))
             except Exception as e:
@@ -146,8 +153,11 @@ def select_file():
     sort_order = request.args.get('sort_order', 'desc')  # Default to descending order
     search_query = request.args.get('search', '').lower()  # Default to empty search query
     
+    # Get user_id from session
+    user_id = session.get("user", {}).get("oid", "anonymous")
+
     # Query Cosmos DB for uploaded files
-    files_query = "SELECT c.id, c.filename, c.timestamp FROM c"
+    files_query = f"SELECT c.id, c.filename, c.timestamp FROM c WHERE c.user_id = '{user_id}'"
     files = list(cosmos_files_container.query_items(query=files_query, enable_cross_partition_query=True))
 
     # Filter results based on the search query
@@ -236,12 +246,12 @@ def history():
     sort_order = request.args.get('sort_order', 'desc')  # Default to descending order
     search_query = request.args.get('search', '').lower()  # Default to empty search query
     
-    # Query Cosmos DB for uploaded files
-    query = "SELECT c.id, c.topic, c.timestamp FROM c"
-    results = list(cosmos_results_container.query_items(
-        query=query,
-        enable_cross_partition_query=True
-    ))
+    # Get user_id from session
+    user_id = session.get("user", {}).get("oid", "anonymous")
+    
+    # Query Cosmos DB for user's saved results
+    query = f"SELECT c.id, c.topic, c.timestamp FROM c WHERE c.user_id = '{user_id}'"
+    results = list(cosmos_results_container.query_items(query=query, enable_cross_partition_query=True))
 
     # Filter results based on the search query
     if search_query:
@@ -308,51 +318,54 @@ def upload_content():
         file = request.files.get('file')
         if file and allowed_file(file.filename):
             try:
-                # Secure the filename
                 filename = secure_filename(file.filename)
                 file_extension = filename.rsplit('.', 1)[1].lower()
                 
-                # Optional: You can still extract content to display or extract the topic
+                # Process content based on the file type
                 if file_extension == 'docx':
                     content = docx2txt.process(file)
                 elif file_extension in ['txt', 'md']:
                     content = file.read().decode('utf-8', errors='ignore')
                 else:
                     content = ''
-
+                
                 if not content.strip():
                     flash("The uploaded file is empty or could not be read.", "danger")
                     return redirect(request.url)
-
-                # Save file itself to Cosmos DB
-                file.seek(0)  # Reset file pointer to the beginning in case the content was read
+                
+                # Get user information from session
+                user_info = session.get("user", {})
+                user_id = user_info.get("oid", "anonymous")  # Default to 'anonymous' if user ID not found
+                user_email = user_info.get("email", "no-email")  # Default to 'no-email' if email not found
+                            
+                # Save the file data to Cosmos DB
                 file_data = {
-                    'id': str(uuid.uuid4()),  # Unique ID
+                    'id': str(uuid.uuid4()),
+                    'content': content,
                     'filename': filename,
-                    'file_content': file.read().decode('utf-8', errors='ignore'),  # Save raw file content
+                    'file_content': file.read().decode('utf-8', errors='ignore'),
                     'file_extension': file_extension,
-                    'timestamp': str(datetime.datetime.utcnow())
+                    'timestamp': str(datetime.datetime.utcnow()),
+                    'user_id': user_id,  # Associate with user
+                    'user_email': user_email  # Save user email with the result
                 }
-
-                # Insert file data into the Cosmos DB files container (saving the file itself, not content)
                 cosmos_files_container.create_item(body=file_data)
-
-                # Extract the topic from content for session (without storing the content itself)
+                
                 session['body'] = content
                 session['topic'] = extract_topic_from_content(content)
-
+                
                 flash("File uploaded successfully!", "success")
                 return redirect(url_for('options'))
-
             except Exception as e:
                 print(f"Error processing the uploaded file: {e}")
-                flash("An error occurred while processing the uploaded file. Please ensure it's a valid DOCX, TXT, or MD file.", "danger")
+                flash("An error occurred while processing the uploaded file.", "danger")
                 return redirect(request.url)
         else:
             flash("Invalid file type. Please upload a DOCX, TXT, or MD file.", "danger")
             return redirect(request.url)
     
     return render_template('upload_content.html')
+
 
 def extract_topic_from_content(content):
     # Simple extraction method: Use the first sentence as the topic
@@ -433,6 +446,7 @@ def results():
         results['article_introductions'] = introduction
 
     # Automated SEO Text
+    # This section is not being used in the current version of the app but can be enabled if needed
     if 'automated_seo_text' in selected_options:
         target_keywords = form_data.get('seo_keywords', [''])[0]
         system_prompt = "You are an AI assistant specialized in generating SEO-optimized content."
@@ -454,8 +468,8 @@ def results():
     # SEO-Friendly Tags
     if 'seo_friendly_tags' in selected_options:
         num_tags = int(form_data.get('num_tags', ['5'])[0])
-        system_prompt = "You are an AI assistant that generates SEO-friendly tags."
-        user_prompt = f"Generate {num_tags} SEO-friendly tags for an article about '{topic}'."
+        system_prompt = "You are an AI assistant specialized in generating SEO-friendly tags for digital content. Your focus is to create concise, descriptive tags that improve discoverability and search ranking. Each tag should be relevant to the article's topic, structured for readability, and follow standard SEO conventions."
+        user_prompt = f"Generate {num_tags} SEO-friendly tags for an article about '{topic}'. Ensure that each tag is relevant, concise, and accurately reflects key themes of the article. Tags will start with a # symbol, will not contain spaces or special characters (other than the #), and should maximize search engine visibility by using common SEO keywords."
         response = openai.ChatCompletion.create(
             engine=MODEL,
             messages=[
@@ -485,7 +499,7 @@ def results():
             translations[lang_name] = translated_text
         results['article_translation'] = translations
 
-    save_results_to_cosmos(results, topic)
+    save_results_to_cosmos(results, topic, body)
 
     return render_template('results.html', results=results, form_data=form_data, topic=topic, body=body)
 

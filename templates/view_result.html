@@ -4,8 +4,26 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h1>{{ result['topic'] }}</h1>
-    <p>Generated on {{ result['timestamp'] }}</p>
+    <!-- Display Original Content: Topic and Body -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2>Your Provided Content</h2>
+        </div>
+        <div class="card-body">
+            {% if result.get('topic') %}
+                <h3>Topic</h3>
+                <p>{{ result['topic'] }}</p>
+            {% endif %}
+            {% if result.get('body') %}
+                <h3>Body</h3>
+                <div class="content">
+                    {{ result['body'] | markdown }}
+                </div>
+            {% else %}
+                <p class="text-muted">No original body content provided.</p>
+            {% endif %}
+        </div>
+    </div>
 
     <!-- Article Titles -->
     <div class="card mb-4">

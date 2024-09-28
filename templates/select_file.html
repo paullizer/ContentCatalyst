@@ -5,6 +5,11 @@
 {% block content %}
 <h1 class="text-center mb-4">Select a File from Cosmos DB</h1>
 
+<!-- Informational Message -->
+<p class="text-muted text-center mb-4">
+    Note: Only you have access to the files you have uploaded. These files are securely stored and can only be viewed by you.
+</p>
+
 <!-- Search Form -->
 <form method="get" action="{{ url_for('select_file') }}">
     <div class="input-group mb-3">
